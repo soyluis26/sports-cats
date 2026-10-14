@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#10131c">
+  <title>Sports Cat 🐱</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #10131c;
+      color: #f5f7ff;
+      font-family: Arial, sans-serif;
+    }
+    header {
+      padding: 22px 16px;
+      background: #191e2b;
+      border-bottom: 2px solid #ff8a24;
+    }
+    h1 { margin: 0; color: #ff9638; }
+    header p { margin-bottom: 0; color: #b9c0d2; }
+    main { max-width: 850px; margin: auto; padding: 16px; }
+    .panel {
+      background: #191e2b;
+      border: 1px solid #30394b;
+      border-radius: 14px;
+      padding: 16px;
+      margin: 14px 0;
+    }
+    button, select {
+      background: #ff8a24;
+      color: #11131a;
+      border: 0;
+      border-radius: 9px;
+      padding: 12px;
+      font-weight: bold;
+      font-size: 15px;
+    }
+    button { cursor: pointer; }
+    select { max-width: 100%; }
+    .muted { color: #aab3c7; }
+    .match {
+      background: #22293a;
+      border-radius: 10px;
+      padding: 14px;
+      margin-top: 10px;
+    }
+    .score {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 17px;
+      font-weight: bold;
+    }
+    .status { color: #ffad5c; font-size: 12px; }
+    a { color: #ffad5c; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>🐱 Sports Cat</h1>
+  <p>Tu centro internacional de deportes en vivo</p>
+</header>
+<main>
+  <div class="panel">
+    <h2>Partidos y resultados</h2>
+    <p class="muted">Consulta encuentros de fútbol, NBA, MLB y NFL.</p>
+    <label for="sport">Deporte: </label>
+    <select id="sport">
+      <option value="soccer">Fútbol</option>
+      <option value="basketball">NBA</option>
+      <option value="baseball">MLB</option>
+      <option value="football">NFL</option>
+    </select>
+    <p><button id="refresh">Actualizar resultados</button></p>
+    <p id="status" class="muted">Preparando conexión...</p>
+  </div>
+  <section id="matches"></section>
+  <div class="panel">
+    <h3>Sobre Sports Cat</h3>
+    <p class="muted">Proyecto en desarrollo. Los resultados dependen de la disponibilidad de las fuentes de datos.</p>
+  </div>
+</main>
+<script>
+const API = "https://site.api.espn.com/apis/site/v2/sports";
+const sports = {
+  soccer: { path: "soccer/eng.1", label: "Fútbol" },
+  basketball: { path: "basketball/nba", label: "NBA" },
+  baseball: { path: "baseball/mlb", label: "MLB" },
+  football: { path: "football/nfl", label: "NFL" }
+};
+
+async function loadMatches() {
+  const selector = document.getElementById("sport");
+  const sport = sports[selector.value];
+  const status = document.getElementById("status");
+  const container = document.getElementById("matches");
+  status.textContent = "Cargando resultados...";
+  container.innerHTML = "";
+
+  try {
+    const response = await fetch(
+      `${API}/${sport.path}/scoreboard`
+    );
+    if (!response.ok) throw new Error("Fuente no disponible");
+    const data = await response.json();
+    const events = data.events || [];
+
+    if (!events.length) {
+      status.textContent = "No hay partidos disponibles ahora.";
+      return;
+    }
+
+    status.textContent = `${events.length} encuentros encontrados`;
+    events.forEach(event => {
+      const competitors =
+        event.competitions?.[0]?.competitors || [];
+      const home = competitors.find(t => t.homeAway === "home");
+      const away = competitors.find(t => t.homeAway === "away");
+      const date = event.date
+        ? new Date(event.date).toLocaleString("es")
+        : "Horario no disponible";
+      const state = event.status?.type?.shortDetail || "Programado";
+
+      const card = document.createElement("article");
+      card.className = "match";
+      const title = document.createElement("p");
+      title.className = "status";
+      title.textContent = `${sport.label} · ${state}`;
+      const score = document.createElement("div");
+      score.className = "score";
+
+      const team = t =>
+        `${t?.team?.displayName || "Por confirmar"} ${
+          t?.score ?? "-"
+        }`;
+
+      const teams = document.createElement("div");
+      teams.textContent = `${team(home)}  —  ${team(away)}`;
+      const time = document.createElement("p");
+      time.className = "muted";
+      time.textContent = date;
+
+      card.append(title, teams, time);
+      container.appendChild(card);
+    });
+  } catch (error) {
+    status.textContent =
+      "No se pudieron cargar los resultados. Comprueba la conexión e inténtalo de nuevo.";
+  }
+}
+
+document.getElementById("refresh").addEventListener("click", loadMatches);
+document.getElementById("sport").addEventListener("change", loadMatches);
+loadMatches();
+setInterval(loadMatches, 60000);
+</script>
+</body>
+  </html>
